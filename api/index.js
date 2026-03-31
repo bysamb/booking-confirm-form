@@ -9,9 +9,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { email, quote } = req.body || {};
-  if (!email || !quote) {
-    return res.status(400).json({ error: "email and quote are required" });
+  const { emails, email, quote } = req.body || {};
+  const emailList = emails || (email ? [email] : []);
+  if (emailList.length === 0 || !quote) {
+    return res.status(400).json({ error: "email(s) and quote are required" });
   }
 
   const webhookUrl =
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, quote }),
+      body: JSON.stringify({ emails: emailList, quote }),
     });
     if (!response.ok) throw new Error(`Webhook returned ${response.status}`);
     res.status(200).json({ success: true });

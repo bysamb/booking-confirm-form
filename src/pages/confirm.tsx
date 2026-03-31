@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Check, Mail, Hash, Loader2 } from "lucide-react";
+import { Check, Mail, Hash, Loader2, Plus, X } from "lucide-react";
 
 type Stage = "form" | "submitting" | "success" | "error";
 
@@ -8,15 +8,28 @@ export default function ConfirmPage() {
   const emailParam = params.get("email") || "";
   const quoteParam = params.get("quote") || "";
 
-  const [email, setEmail] = useState(emailParam);
-  const [consent1, setConsent1] = useState(false);
-  const [consent2, setConsent2] = useState(false);
-  const [consent3, setConsent3] = useState(false);
+  const [emails, setEmails] = useState<string[]>(emailParam ? [emailParam] : [""]);
   const [stage, setStage] = useState<Stage>("form");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const allConsented = consent1 && consent2 && consent3;
-  const canSubmit = email.trim() !== "" && quoteParam !== "" && allConsented;
+  const validEmails = emails.filter((e) => e.trim() !== "");
+  const canSubmit = validEmails.length > 0 && quoteParam !== "";
+
+  function updateEmail(index: number, value: string) {
+    const updated = [...emails];
+    updated[index] = value;
+    setEmails(updated);
+    if (stage === "error") setStage("form");
+  }
+
+  function addEmail() {
+    setEmails([...emails, ""]);
+  }
+
+  function removeEmail(index: number) {
+    if (emails.length === 1) return;
+    setEmails(emails.filter((_, i) => i !== index));
+  }
 
   async function handleSubmit() {
     if (!canSubmit) return;
@@ -25,7 +38,7 @@ export default function ConfirmPage() {
       const res = await fetch("/api/confirm-booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, quote: quoteParam }),
+        body: JSON.stringify({ emails: validEmails, quote: quoteParam }),
       });
       if (!res.ok) throw new Error("Submission failed");
       setStage("success");
@@ -159,82 +172,48 @@ export default function ConfirmPage() {
                 </div>
               </div>
 
-              {/* Email field */}
+              {/* Email fields */}
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
                   <Mail className="w-3.5 h-3.5" />
-                  Email Address
+                  Email {emails.length > 1 ? "Addresses" : "Address"}
                 </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (stage === "error") setStage("form");
-                  }}
-                  placeholder="Enter your email address"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-[#1B2A4A] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4CAF50]/30 focus:border-[#4CAF50] transition-all"
-                />
+                <div className="space-y-2">
+                  {emails.map((email, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => updateEmail(index, e.target.value)}
+                        placeholder={index === 0 ? "Enter your email address" : "Additional email address"}
+                        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-[#1B2A4A] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4CAF50]/30 focus:border-[#4CAF50] transition-all"
+                      />
+                      {emails.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeEmail(index)}
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addEmail}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#4CAF50] hover:text-[#43A047] transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add another email
+                </button>
               </div>
 
-              {/* Consent checkboxes */}
-              <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
-                  Required Consents
-                </p>
-
-                <ConsentCheckbox
-                  checked={consent1}
-                  onChange={setConsent1}
-                  label={
-                    <>
-                      I agree to the{" "}
-                      <a
-                        href="https://guidedcargo.com/bill-of-lading-terms-conditions/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#4CAF50] underline underline-offset-2 hover:text-[#43A047]"
-                      >
-                        bill of lading terms &amp; conditions
-                      </a>
-                    </>
-                  }
-                />
-                <ConsentCheckbox
-                  checked={consent2}
-                  onChange={setConsent2}
-                  label={
-                    <>
-                      I acknowledge the{" "}
-                      <a
-                        href="https://guidedcargo.com/extra-charges-guide/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#4CAF50] underline underline-offset-2 hover:text-[#43A047]"
-                      >
-                        extra charges guide
-                      </a>
-                    </>
-                  }
-                />
-                <ConsentCheckbox
-                  checked={consent3}
-                  onChange={setConsent3}
-                  label={
-                    <>
-                      I understand the{" "}
-                      <a
-                        href="https://guidedcargo.com/payment-terms/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#4CAF50] underline underline-offset-2 hover:text-[#43A047]"
-                      >
-                        payment terms
-                      </a>
-                    </>
-                  }
-                />
-              </div>
+              {/* Confirmation note */}
+              <p className="text-xs text-gray-500 text-center">
+                By confirming, you are requesting to proceed with booking this shipment.
+              </p>
 
               {/* Error message */}
               {stage === "error" && (
@@ -277,34 +256,3 @@ export default function ConfirmPage() {
   );
 }
 
-function ConsentCheckbox({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: React.ReactNode;
-}) {
-  return (
-    <label className="flex items-start gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50/80 transition-colors group">
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={checked}
-        onClick={(e) => {
-          e.preventDefault();
-          onChange(!checked);
-        }}
-        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${
-          checked
-            ? "bg-[#4CAF50] border-[#4CAF50]"
-            : "bg-white border-gray-300 group-hover:border-gray-400"
-        }`}
-      >
-        {checked && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-      </button>
-      <span className="text-sm text-gray-600 leading-relaxed">{label}</span>
-    </label>
-  );
-}
